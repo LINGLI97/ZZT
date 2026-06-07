@@ -8,8 +8,11 @@ LFLAGS= -std=c++17 \
 
 LCCS_LFLAGS= $(LFLAGS) -I ./librmqo/include/ -L ./librmqo/lib/ -lrmqo
 
-.PHONY: all CC LCCS LFCS TopK_Freq TopK_TP TopK_GAP \
-        clean_CC clean_LCCS clean_LFCS clean_TopK_Freq clean_TopK_TP clean_TopK_GAP clean
+.DEFAULT_GOAL := all
+
+.PHONY: all CC LCCS LFCS TCPR-TF TCPR-TP TCPR-SP TopK_Freq TopK_TP TopK_SP \
+        clean_CC clean_LCCS clean_LFCS clean_TCPR-TF clean_TCPR-TP clean_TCPR-SP \
+        clean_TopK_Freq clean_TopK_TP clean_TopK_SP clean
 
 .SUFFIXES:
 .SUFFIXES: .cpp .o
@@ -83,12 +86,13 @@ clean_LFCS:
 	rm -f $(LFCS_OBJ) $(LFCS_EXE)
 
 
-# ─── TopK Frequency ───────────────────────────────────────────────────────────
+# ─── TCPR-TF ──────────────────────────────────────────────────────────────────
 TopK_Freq_EXE= run_TopK_SA_Truncated_Freq
 TopK_Freq_SRC= topK_SA_Truncated.cpp SA_LCP_LCE.cpp compactTrieTruncated.cpp esaTruncated.cpp
 TopK_Freq_HD=  SA_LCP_LCE.h compactTrieTruncated.h esaTruncated.h cmdline.h Makefile
 TopK_Freq_OBJ= $(TopK_Freq_SRC:.cpp=.o)
 
+TCPR-TF: $(TopK_Freq_EXE)
 TopK_Freq: $(TopK_Freq_EXE)
 
 $(TopK_Freq_EXE): $(TopK_Freq_OBJ)
@@ -99,13 +103,16 @@ topK_SA_Truncated.o: $(TopK_Freq_HD)
 clean_TopK_Freq:
 	rm -f $(TopK_Freq_OBJ) $(TopK_Freq_EXE)
 
+clean_TCPR-TF: clean_TopK_Freq
 
-# ─── TopK Term Proximity ──────────────────────────────────────────────────────
+
+# ─── TCPR-TP ──────────────────────────────────────────────────────────────────
 TopK_TP_EXE= run_TopK_SA_Truncated_TP
 TopK_TP_SRC= topK_SA_Truncated_TP.cpp SA_LCP_LCE.cpp compactTrieTruncated.cpp esaTruncated_TP.cpp
 TopK_TP_HD=  SA_LCP_LCE.h compactTrieTruncated.h esaTruncated_TP.h cmdline.h Makefile
 TopK_TP_OBJ= $(TopK_TP_SRC:.cpp=.o)
 
+TCPR-TP: $(TopK_TP_EXE)
 TopK_TP: $(TopK_TP_EXE)
 
 $(TopK_TP_EXE): $(TopK_TP_OBJ)
@@ -116,26 +123,31 @@ topK_SA_Truncated_TP.o: $(TopK_TP_HD)
 clean_TopK_TP:
 	rm -f $(TopK_TP_OBJ) $(TopK_TP_EXE)
 
+clean_TCPR-TP: clean_TopK_TP
 
-# ─── TopK Gap ─────────────────────────────────────────────────────────────────
-TopK_GAP_EXE= run_TopK_SA_Truncated_GAP
-TopK_GAP_SRC= topK_SA_Truncated_GAP.cpp SA_LCP_LCE.cpp compactTrieTruncated.cpp esaTruncated_GAP.cpp
-TopK_GAP_HD=  SA_LCP_LCE.h compactTrieTruncated.h esaTruncated_GAP.h cmdline.h Makefile
-TopK_GAP_OBJ= $(TopK_GAP_SRC:.cpp=.o)
 
-TopK_GAP: $(TopK_GAP_EXE)
+# ─── TCPR-SP ──────────────────────────────────────────────────────────────────
+TopK_SP_EXE= run_TopK_SA_Truncated_SP
+TopK_SP_SRC= topK_SA_Truncated_GAP.cpp SA_LCP_LCE.cpp compactTrieTruncated.cpp esaTruncated_GAP.cpp
+TopK_SP_HD=  SA_LCP_LCE.h compactTrieTruncated.h esaTruncated_GAP.h cmdline.h Makefile
+TopK_SP_OBJ= $(TopK_SP_SRC:.cpp=.o)
 
-$(TopK_GAP_EXE): $(TopK_GAP_OBJ)
-	$(CC) $(CFLAGS) -o $@ $(TopK_GAP_OBJ) $(LFLAGS)
+TCPR-SP: $(TopK_SP_EXE)
+TopK_SP: $(TopK_SP_EXE)
 
-topK_SA_Truncated_GAP.o: $(TopK_GAP_HD)
+$(TopK_SP_EXE): $(TopK_SP_OBJ)
+	$(CC) $(CFLAGS) -o $@ $(TopK_SP_OBJ) $(LFLAGS)
 
-clean_TopK_GAP:
-	rm -f $(TopK_GAP_OBJ) $(TopK_GAP_EXE)
+topK_SA_Truncated_GAP.o: $(TopK_SP_HD)
+
+clean_TopK_SP:
+	rm -f $(TopK_SP_OBJ) $(TopK_SP_EXE) run_TopK_SA_Truncated_GAP
+
+clean_TCPR-SP: clean_TopK_SP
 
 
 # ─── all / clean ──────────────────────────────────────────────────────────────
-all: CC LCCS LFCS TopK_Freq TopK_TP TopK_GAP
+all: CC LCCS LFCS TopK_Freq TopK_TP TopK_SP
 
-clean: clean_CC clean_LCCS clean_LFCS clean_TopK_Freq clean_TopK_TP clean_TopK_GAP
+clean: clean_CC clean_LCCS clean_LFCS clean_TopK_Freq clean_TopK_TP clean_TopK_SP
 	rm -f *.o *~

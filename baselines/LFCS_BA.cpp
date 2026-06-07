@@ -324,11 +324,61 @@ int main(int argc, char * argv[]){
             }
         }
 
+        // ── Second pass: locus of P^R in ST(T^R), searching in ST(T) ─────────
+        // Symmetric to the first pass (Lemma: at least one of the two loci is explicit).
+        unsigned char* P_rev = (unsigned char*)malloc((m + 1) * sizeof(unsigned char));
+        for (INT k = 0; k < m; k++) P_rev[k] = P[m - 1 - k];
+        P_rev[m] = '\0';
+
+        stNode* vP_rev = ST_rev.forward_search(P_rev, m);
+        free(P_rev);
+
+        if (vP_rev) {
+            stack<stNode*> dfs2;
+            dfs2.push(vP_rev);
+            while (!dfs2.empty()) {
+                stNode* u2 = dfs2.top(); dfs2.pop();
+                if (u2->leafCount < tau) continue;
+
+                // u2 represents a left extension (LP)^R in T^R
+                INT len_LP_rev = u2->child.empty() ? u2->depth - 1 : u2->depth;
+                INT L_len = len_LP_rev - m;
+
+                if (L_len >= 0) {
+                    // Construct LP = reverse of (LP)^R stored in textRev
+                    unsigned char* LP = (unsigned char*)malloc((len_LP_rev + 1) * sizeof(unsigned char));
+                    for (INT k = 0; k < len_LP_rev; k++)
+                        LP[k] = textRev[u2->start + len_LP_rev - 1 - k];
+                    LP[len_LP_rev] = '\0';
+
+                    // Search LP in ST(T) and use deepPtr to find max right extension R
+                    stNode* vFwd2 = ST_fwd.forward_search(LP, len_LP_rev);
+                    free(LP);
+
+                    if (vFwd2) {
+                        stNode* uFwd2 = vFwd2->deepPtr;
+                        if (uFwd2) {
+                            INT d_fwd = uFwd2->child.empty() ? uFwd2->depth - 1 : uFwd2->depth;
+                            INT R_prime = d_fwd - len_LP_rev;
+                            if (R_prime >= 0) {
+                                INT s = min(R_prime, L_len);
+                                INT lpr_len = m + 2 * s;
+                                if (lpr_len > best_len) best_len = lpr_len;
+                            }
+                        }
+                    }
+                }
+
+                for (auto& kv : u2->child) dfs2.push(kv.second);
+            }
+        }
+
         auto queryEnd = std::chrono::high_resolution_clock::now();
         double query_time = std::chrono::duration_cast<std::chrono::microseconds>(
             queryEnd - queryStart).count() * 1e-6;
 
         cout << "Pattern " << i << ": " << P << endl;
+        cout << "occ_T(P): " << vP->leafCount << endl;
         if (best_len < 0) {
             cerr << "P exists in text string but LPR is not " << tau << "-frequent" << endl;
         } else {

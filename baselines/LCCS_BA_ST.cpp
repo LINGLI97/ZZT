@@ -325,8 +325,10 @@ void computeColorCounts(stNode* root,
     }
 
     // ── Step 7: colorCount = valid_leafCount - duplicate ──────────────────────
-    for (stNode* u : allNodes)
+    for (stNode* u : allNodes) {
+        u->leafCount  = vlc[nid[u]];                    // total occurrences across all texts
         u->colorCount = vlc[nid[u]] - dup[nid[u]];
+    }
 }
 
 // ─── Tree visualization: DOT/PNG export ───────────────────────────────────────
@@ -641,10 +643,64 @@ int main(int argc, char* argv[]) {
 
         free(revBuf);
 
+        // ── Second pass: locus of P^R in ST(T^R), searching in ST(T) ─────────
+        // Symmetric to the first pass (correctness by Lemma 1 analogue for LCCS).
+        unsigned char* P_rev2 = (unsigned char*)malloc((m + 1) * sizeof(unsigned char));
+        for (INT k = 0; k < m; k++) P_rev2[k] = P[m - 1 - k];
+        P_rev2[m] = '\0';
+
+        stNode* v_rev2 = ST_rev.forward_search(P_rev2, m);
+        free(P_rev2);
+
+        if (v_rev2) {
+            unsigned char* revBuf2 = (unsigned char*)malloc(n + 1);
+            stack<stNode*> dfs2;
+            dfs2.push(v_rev2);
+
+            while (!dfs2.empty()) {
+                stNode* u2 = dfs2.top(); dfs2.pop();
+                if (u2->colorCount < tau) continue;
+
+                INT pos2 = u2->start;
+                int col2 = find_color(pos2, sep_rev);
+                if (col2 < 0 || col2 >= c || pos2 < tstart_rev[col2] || pos2 > tend_rev[col2])
+                    continue;
+
+                INT max_valid_len2 = tend_rev[col2] - pos2 + 1;
+                INT parent_depth2  = u2->parent ? u2->parent->depth : 0;
+                INT len_end2   = u2->child.empty() ? max_valid_len2 : min(u2->depth, max_valid_len2);
+                INT len_start2 = max(parent_depth2 + 1, m);
+
+                if (!u2->child.empty() && u2->depth <= max_valid_len2)
+                    for (auto& kv : u2->child) dfs2.push(kv.second);
+
+                if (len_start2 > len_end2) continue;
+
+                // u2 represents (LP)^R in T^R; reverse it to get LP and search in ST(T).
+                for (INT len_LP_rev = len_end2; len_LP_rev >= len_start2; len_LP_rev--) {
+                    INT l  = len_LP_rev - m;
+                    INT d2 = 2 * l + m;
+                    if (d2 <= bestLen) break;
+
+                    for (INT k = 0; k < len_LP_rev; k++)
+                        revBuf2[k] = textRev[pos2 + len_LP_rev - 1 - k];
+                    revBuf2[len_LP_rev] = '\0';
+
+                    stNode* w2 = ST_fwd.forward_search(revBuf2, len_LP_rev);
+                    if (!w2) continue;
+
+                    if (existsColorFreqAtDepth(w2, d2, tau, sep_fwd, tend_fwd, c))
+                        bestLen = d2;
+                }
+            }
+            free(revBuf2);
+        }
+
         auto qEnd = chrono::high_resolution_clock::now();
         double qt = chrono::duration_cast<chrono::microseconds>(qEnd - qStart).count() * 1e-6;
 
         cout << "Pattern " << pi << ": " << P << endl;
+        cout << "occ_T(P): " << v->leafCount << endl;
         if (bestLen < 0)
             cerr << "P exists but no LPR is " << tau << "-frequent." << endl;
         else
