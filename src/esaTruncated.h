@@ -62,7 +62,7 @@ struct B {
     INT leaf_cnt = 0;
 };
 
-// 只声明你要暴露给外部调用的函数
+// Only declare the functions that need to be exposed to external callers.
 unsigned int LCParray(unsigned char *text, INT n, std::vector<INT> &SA, INT *ISA, std::vector<INT> &LCP);
 
 void construct_tuples(INT n, INT *SA, std::vector<B>& b, INT* LCP, INT Bound);

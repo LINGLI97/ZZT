@@ -40,31 +40,31 @@ void readfile(string &filename, string &patternPath, unsigned char * &text_strin
     std::string concatenated;
     std::string line;
 
-    // 先读取所有行以找出所有已使用的字符
+    // First read all lines to collect the set of characters already in use
     std::vector<std::string> lines;
     while (std::getline(is_text, line)) {
         if (!line.empty()) {
             std::string filtered_line;
-            // 过滤：只保留ASCII字符（0-127）
+            // Filter: keep ASCII characters only (0-127)
             for (char c : line) {
                 unsigned char uc = (unsigned char)c;
-                if (uc <= 127) {  // 只接受ASCII范围
+                if (uc <= 127) {  // Accept ASCII characters only
                     filtered_line += c;
                     alphabet.insert(uc);
                 }
-                // 超过127的字符被忽略
+                // Ignore characters above 127
             }
-            if (!filtered_line.empty()) {  // 只保存非空行
+            if (!filtered_line.empty()) {  // Keep non-empty lines only
                 lines.push_back(filtered_line);
             }
         }
     }
     is_text.close();
 
-    // 找出原文本中不存在的字符作为separators（每个文本行使用不同的separator）
+    // Use characters absent from the input as separators, one distinct separator per text line
     // save 255 for the line end
     std::vector<unsigned char> available_separators;
-    for (int i = 128; i <= 254; i++) {  // 从128开始到254
+    for (int i = 128; i <= 254; i++) {  // Search the range 128..254
         if (alphabet.find((unsigned char)i) == alphabet.end()) {
             available_separators.push_back((unsigned char)i);
         }
@@ -75,7 +75,7 @@ void readfile(string &filename, string &patternPath, unsigned char * &text_strin
         return;
     }
 
-    // 使用不同的separator连接每个文本行
+    // Concatenate the text lines using distinct separators
     int separator_idx = 0;
     for (size_t i = 0; i < lines.size(); i++) {
         if (i > 0) {
@@ -116,7 +116,7 @@ void readfile(string &filename, string &patternPath, unsigned char * &text_strin
             continue;  // Skip the invalid line
         }
 
-        // 过滤pattern：只保留ASCII字符（0-127）
+        // Filter the pattern: keep ASCII characters only (0-127)
         std::string filtered_pattern;
         for (char c : pattern_str) {
             unsigned char uc = (unsigned char)c;
@@ -126,7 +126,7 @@ void readfile(string &filename, string &patternPath, unsigned char * &text_strin
         }
 
         if (filtered_pattern.empty()) {
-            continue;  // 跳过空pattern
+            continue;  // Skip empty patterns
         }
 
 
@@ -435,12 +435,12 @@ int main(int argc, char * argv[]){
 //index, text id
     std::vector<pair<INT,INT>> indices(text_size);
 
-    // 根据separator位置确定每个位置的text id
+    // Determine the text ID for each position using separator locations
     INT current_text_id = 0;
     INT separator_idx = 0;
 
     for (INT i = 0; i < text_size; ++i){
-        // 检查是否到达了下一个separator
+        // Check whether the next separator has been reached
         if (separator_idx < (INT)IdxSeparators.size() && i == IdxSeparators[separator_idx]) {
             current_text_id++;
             separator_idx++;
@@ -506,7 +506,7 @@ int main(int argc, char * argv[]){
 
     Trie.buildPointers(tau);
 
-// ---- 输出时间 ----
+// ---- Report timing ----
 
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -551,7 +551,7 @@ int main(int argc, char * argv[]){
     cout << "=========================== Start to query all the patterns: LCCS ==========================="<< endl;
 
     // Start to query all the patterns
-    // 然后对每个pattern进行查询
+    // Then query each pattern
     for (INT i = 0; i < patterns.size(); i++) {
         auto queryStart = std::chrono::high_resolution_clock::now();
 
@@ -577,7 +577,7 @@ int main(int argc, char * argv[]){
         }
 
 
-        // 4. 检查pointer并返回结果
+        // 4. Check the pointer and return the result
         if (locus->ptr == nullptr) {
             std::cout << "Pattern " << i << ": " << patterns[i] << std::endl;
 
@@ -587,7 +587,7 @@ int main(int argc, char * argv[]){
             std::cout << "Pattern " << i << ": " << patterns[i] << std::endl;
             cout << "LPR exists with tau >= " << tau <<", P starts at " << u->start<< endl;
 
-            // 输出str(u)作为答案
+            // Output str(u) as the answer
             // cout<<"u->start: "<<u->start<<"; u->depth:"<<u->depth<<endl;
         }
         auto queryEnd = std::chrono::high_resolution_clock::now();

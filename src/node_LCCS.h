@@ -31,13 +31,13 @@ public:
 
 
 
-    // 叶子所属文本编号（颜色），内部结点设为 -1
+    // Text ID (color) of the leaf; set to -1 for internal nodes
     INT textID;
 
-    INT leafCount;      // 子树中的叶子总数
-    INT CPLcount;       // 作为 color-pair-lca 的次数
-    INT duplicate;      // 子树中重复的叶子数
-    INT css;            // 最终的 Color Set Size（不同颜色数）
+    INT leafCount;      // Total number of leaves in the subtree
+    INT CPLcount;       // Number of times it serves as a color-pair LCA
+    INT duplicate;      // Number of duplicate leaves in the subtree
+    INT css;            // Final Color Set Size (number of distinct colors)
     Node * ptr;
     INT id;
 

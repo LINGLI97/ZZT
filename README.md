@@ -15,7 +15,11 @@ Here, `TF`, `TP`, and `SP` are three different score functions for TCPR.
 
 ## Dataset
 
-A small runnable example dataset is provided in `dataset/`:
+The paper datasets are available at:
+
+- <https://drive.google.com/file/d/1-dD8ZA53sJTGKVOC_dCcm0Kh8h9UtV8q/view?usp=sharing>
+
+The files in `dataset/` are example inputs for quick local testing:
 
 - `dataset/input.txt`: single-text input for `LFCS`, `CC`, `TCPR-TF`, `TCPR-TP`, `TCPR-SP`, and their baselines
 - `dataset/multiInput.txt`: multi-text input for `LCCS` and `LCCS` baseline
@@ -101,4 +105,3 @@ make -C baselines
 # TCPR-SP baseline (SP score)
 ./baselines/run_baseline_SP_topK -f dataset/input.txt -p dataset/patterns.txt
 ```
-

@@ -358,7 +358,7 @@ INT compareZStrings(INT i, INT j, SA_LCP_LCE& DS_org, SA_LCP_LCE& DS_rev, INT B)
             return 2 * r;
         }
     } else {
-        // 2 f + 1 是index, 需要加1才是长度
+        // 2f + 1 is an index, so add 1 to get the length
         if (2 * f + 2 > B) {
             return B;
         } else {
@@ -539,7 +539,7 @@ static inline bool next_greater_id_with_right(INT x,
 {
     auto it = std::upper_bound(
             id2right.begin(), id2right.end(), x,
-            [](INT value, const pair<INT, INT>& elem){ return value < elem.first; } // 找第一个 elem.first > x
+            [](INT value, const pair<INT, INT>& elem){ return value < elem.first; } // Find the first elem.first > x
     );
     if (it == id2right.end()) return false;
     out_id = it->first;

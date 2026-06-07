@@ -28,18 +28,18 @@ using point4 = bg::model::point<INT, 4, bg::cs::cartesian>;
 #include <cstring>
 
 
-// Offline RMQ/LCA 相关结构
+// Structures used by the offline RMQ/LCA routine
 struct LCAQuery {
-    INT node_a_id;  // 第一个节点ID
-    INT node_b_id;  // 第二个节点ID
-    INT result_id;  // 结果节点ID（由offline算法填充）
+    INT node_a_id;  // First node ID
+    INT node_b_id;  // Second node ID
+    INT result_id;  // Result node ID (filled by the offline algorithm)
 };
 
 //using namespace std;
 
 unsigned char getZigZagChar(INT i, INT j, unsigned char* T, INT text_size);
 
- // 计算从位置i开始的zigzag字符串的最大长度（受separator限制）
+ // Compute the maximum zigzag string length from position i, bounded by separators
 
 INT getZigZagMaxLength(INT i, INT text_size, const vector<INT>& IdxSeparators);
 
@@ -54,10 +54,10 @@ public:
     Node * root;
     Node * forward_search( unsigned char* P, INT& pattern_size);
 
-    // 对整棵树计算 CSS（leafCount, CPLcount, duplicate, css）
+    // Compute CSS-related values (leafCount, CPLcount, duplicate, css) for the whole tree
     void computeCSS();
 
-    // 为每个explicit节点建立pointer，指向子树中满足css >= tau且深度最大的节点
+    // For each explicit node, build a pointer to the deepest subtree node with css >= tau
     void buildPointers(INT tau);
 
     void deleteTreeIteratively();

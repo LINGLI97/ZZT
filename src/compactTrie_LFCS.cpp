@@ -115,22 +115,22 @@ void compactTrie::buildLFCS(INT tau) {
                 v->leafCount = sum;
             }
 
-            // 找子树中最深的满足条件的节点
+            // Find the deepest qualifying node in the subtree
             Node* best = NULL;
             INT bestDepth = -1;
 
-            // ✅ 检查所有孩子及其子树
+            // Check all children and their subtrees
             for(auto &kv: v->child)
             {
                 Node* child = kv.second;
 
-                // 情况1: child itself
+                // Case 1: the child itself
                 if(child->leafCount >= tau && child->depth > bestDepth){
                     bestDepth = child->depth;
                     best = child;
                 }
 
-                // 情况2: check the subtree of child if child->frequentPtr != child
+                // Case 2: inspect the child's subtree if child->frequentPtr != child
                 if (child->frequentPtr != child)
                 {
                     if(child->frequentPtr && child->frequentPtr->depth > bestDepth){
@@ -142,7 +142,7 @@ void compactTrie::buildLFCS(INT tau) {
 
             }
 
-            // ✅ 检查 v 本身
+            // Check v itself
             if(v->leafCount >= tau && v->depth > bestDepth){
                 bestDepth = v->depth;
                 best = v;

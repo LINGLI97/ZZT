@@ -59,12 +59,12 @@ struct B {
     INT cursor = 0;
 //    std::vector<INT> ch;
     INT min_gap = INT_MAX;
-    std::vector<INT> occ;    // 升序的“出现位置”列表（如 SA[pos]）
+    std::vector<INT> occ;    // Sorted list of occurrence positions (e.g., SA[pos])
     INT right_node = -1;
 //    INT leaf_cnt = 0;
 };
 
-// 只声明你要暴露给外部调用的函数
+// Only declare the functions that need to be exposed to external callers.
 unsigned int LCParray(unsigned char *text, INT n, std::vector<INT> &SA, INT *ISA, std::vector<INT> &LCP);
 
 void construct_tuples(INT n, INT *SA, std::vector<B>& b, INT* LCP, INT Bound);

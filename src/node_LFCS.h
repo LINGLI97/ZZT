@@ -35,8 +35,8 @@ public:
 //DFS
     bool visited;
 
-    INT leafCount;          // 子树叶子数
-    Node* frequentPtr;      // 最深 τ-frequent 后代
+    INT leafCount;          // Number of leaves in the subtree
+    Node* frequentPtr;      // Deepest tau-frequent descendant
 
 
 

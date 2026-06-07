@@ -613,7 +613,7 @@ int main(int argc, char * argv[]){
     Trie.buildLFCS(tau);
 
 
-// ---- 输出时间 ----
+// ---- Report timing ----
 
 
     auto end = std::chrono::high_resolution_clock::now();

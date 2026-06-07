@@ -25,7 +25,7 @@ public:
     unsigned char label; // label is the label of edge which links its parent and itself
 
     Node * parent;
-    INT val_even;   // 从该节点砍偶数深度的接触点数
+    INT val_even;   // Number of contact points obtained by cutting at even depths from this node
     INT val_odd ;
     Node();
     Node(unsigned char &terminate_label);

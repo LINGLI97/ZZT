@@ -7,15 +7,15 @@
 #include "compactTrie.h"
 
 INT zigzag_length(INT i, INT n) {
-    // T[1..n]，两端已添加 $
-    // 实际字符位置是 1 到 n
+    // T[1..n] with '$' added at both ends
+    // Actual character positions are 1..n
 
-    INT left_steps = i + 1;      // 能向左走的步数
-    INT right_steps = n- 2 - i;     // 能向右走的步数
+    INT left_steps = i + 1;      // Number of steps available to the left
+    INT right_steps = n- 2 - i;     // Number of steps available to the right
     INT steps = min(left_steps, right_steps);
 
-    // 长度 = 初始位置1 + 向右向左各steps步
-    // 如果一边还有剩余，再加1
+    // Length = initial position 1 + left and right expansions of 'steps' each
+    // If one side still has remaining characters, add 1 more
 
     INT length = 0;
     if (left_steps <= right_steps){
@@ -139,17 +139,17 @@ compactTrie::compactTrie(std::vector<INT> &indices, vector<INT>& LCP,unsigned ch
 //                 Node* u = kv.second;
 //                 INT d = u->depth - v->depth;
 //
-//                 // 边的贡献
+//                 // Edge contribution
 //                 INT edge_even = d / 2;           // floor(d/2)
-//                 INT edge_odd = (d - 1) / 2;      // floor((d-1)/2)  ← 修改这里
+//                 INT edge_odd = (d - 1) / 2;      // floor((d-1)/2)  <- modified here
 //
-//                 // 计算 val_even
+//                 // Compute val_even
 //                 if(d % 2 == 0)
 //                     v->val_even += edge_even + u->val_even;
 //                 else
 //                     v->val_even += edge_even + u->val_odd;
 //
-//                 // 计算 val_odd
+//                 // Compute val_odd
 //                 if(d % 2 == 0)
 //                     v->val_odd += edge_odd + u->val_odd;
 //                 else
@@ -169,7 +169,7 @@ void compactTrie::buildCC() {
 
         if(!v->visited)
         {
-            // 第一次访问 v，标记并把孩子入栈
+            // First visit to v: mark it and push its children onto the stack
             v->visited = true;
 
             for(auto &kv : v->child)
@@ -177,7 +177,7 @@ void compactTrie::buildCC() {
         }
         else
         {
-            // 第二次访问 v，后序处理
+            // Second visit to v: post-order processing
             st.pop();
 
             v->val_even = 0;
@@ -186,23 +186,23 @@ void compactTrie::buildCC() {
             for(auto &kv : v->child)
             {
                 Node* u = kv.second;
-                INT d = u->depth - v->depth;  // 边长
+                INT d = u->depth - v->depth;  // Edge length
 
-                // 边的贡献
+                // Edge contribution
                 INT edge_even = d / 2;              // floor(d/2)
                 INT edge_odd = (d - 1) / 2;         // ceil(d/2)
 
-                // 计算 val_even
-                // d 是偶数：用 val_even(u)
-                // d 是奇数：用 val_odd(u)
+                // Compute val_even
+                // If d is even, use val_even(u)
+                // If d is odd, use val_odd(u)
                 if(d % 2 == 0)
                     v->val_even += edge_even + u->val_even;
                 else
                     v->val_even += edge_even + u->val_odd + u->child.size();
 
-                // 计算 val_odd
-                // d 是偶数：用 val_odd(u)
-                // d 是奇数：用 val_even(u)
+                // Compute val_odd
+                // If d is even, use val_odd(u)
+                // If d is odd, use val_even(u)
                 if(d % 2 == 0)
                     v->val_odd += edge_odd + u->val_odd + u->child.size();
                 else
@@ -238,7 +238,7 @@ void compactTrie::visualize(const std::string& filename) {
         q.pop();
         int currentId = nodeId[current];
 
-        // 创建节点标签，包含所需信息
+        // Create a node label containing the required information
         dotFile << "    node" << currentId << " [label=\"{";
         dotFile << "addr: " << current;
         dotFile << " | depth: " << current->depth;
@@ -247,7 +247,7 @@ void compactTrie::visualize(const std::string& filename) {
         dotFile << " | val_odd: " << current->val_odd;
         dotFile << "}\"];" << std::endl;
 
-        // 遍历子节点
+        // Traverse child nodes
         for (auto& kv : current->child) {
             Node* child = kv.second;
             unsigned char edgeLabel = kv.first;
@@ -259,7 +259,7 @@ void compactTrie::visualize(const std::string& filename) {
 
             int childId = nodeId[child];
 
-            // 添加边，标签显示字符
+            // Add an edge whose label shows the character
             dotFile << "    node" << currentId << " -> node" << childId;
             if (edgeLabel == 255) {
                 dotFile << " [label=\"$\"];" << std::endl;
@@ -274,7 +274,7 @@ void compactTrie::visualize(const std::string& filename) {
     dotFile << "}" << std::endl;
     dotFile.close();
 
-    // 调用 Graphviz 生成图片
+    // Invoke Graphviz to generate the image
     std::string cmd = "dot -Tpng " + filename + ".dot -o " + filename + ".png";
     int result = system(cmd.c_str());
     if (result == 0) {

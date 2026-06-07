@@ -6,7 +6,7 @@
 using namespace std;
 
 
-// ===== 你的接口：Kasai，原样保留 =====
+// ===== Kasai interface kept unchanged =====
 unsigned int LCParray(unsigned char *text, INT n, std::vector<INT> &SA, INT *ISA, vector<INT> &LCP) {
     INT j = 0;
     LCP[0] = 0;
@@ -65,15 +65,15 @@ INT lcp ( unsigned char *  x, INT M, unsigned char * y, INT l, INT a_size, INT w
 
 
 INT zigzag_length(INT i, INT n, INT Bound) {
-    // T[1..n]，两端已添加 $
-    // 实际字符位置是 1 到 n
+    // T[1..n] with '$' added at both ends
+    // Actual character positions are 1..n
 
-    INT left_steps = i + 1;      // 能向左走的步数
-    INT right_steps = n- 2 - i;     // 能向右走的步数
+    INT left_steps = i + 1;      // Number of steps available to the left
+    INT right_steps = n- 2 - i;     // Number of steps available to the right
     INT steps = min(left_steps, right_steps);
 
-    // 长度 = 初始位置1 + 向右向左各steps步
-    // 如果一边还有剩余，再加1
+    // Length = initial position 1 + left and right expansions of 'steps' each
+    // If one side still has remaining characters, add 1 more
 
     INT length = 0;
     if (left_steps <= right_steps){
@@ -104,12 +104,12 @@ static inline INT merge_and_min_cross(
     INT min_cross = INT_MAX;
 
     while (i < A.size() && j < B.size()) {
-        // 更新“跨子树最近距离”
+        // Update the minimum cross-subtree distance
         INT diff = A[i] - B[j];
         if (diff < 0) diff = -diff;
         if (diff < min_cross) min_cross = diff;
 
-        // 标准归并
+        // Standard merge
         if (A[i] <= B[j]) {
             out.push_back(A[i]);
             ++i;
@@ -118,51 +118,51 @@ static inline INT merge_and_min_cross(
             ++j;
         }
     }
-    // 收尾
+    // Finish the merge
     while (i < A.size()) out.push_back(A[i++]);
     while (j < B.size()) out.push_back(B[j++]);
 
     return min_cross;
 }
 
-// ============= 把 child 并入 parent，并更新 parent.min_gap（small-to-large）============
+// ============= Merge child into parent and update parent.min_gap (small-to-large) ============
 static inline void absorb_child(INT parent, INT child, vector<B>& b) {
-    // 先并入子树内部的 min_gap
+    // First merge the child's internal min_gap
     if (b[child].min_gap < b[parent].min_gap) b[parent].min_gap = b[child].min_gap;
 
-    // 若其中一个没有出现位置，直接结束
+    // Stop immediately if one side has no occurrence positions
     if (b[child].occ.empty()) return;
     if (b[parent].occ.empty()) {
         b[parent].occ.swap(b[child].occ);
         return;
     }
 
-    // 线性归并 + 跨子树最近距离
+    // Linear merge plus the minimum cross-subtree distance
     vector<INT> tmp;
     INT cross = merge_and_min_cross(b[parent].occ, b[child].occ, tmp);
     if (cross < b[parent].min_gap) b[parent].min_gap = cross;
 
-    // 生效 + 回收 child 的 occ
+    // Apply the merge and release child.occ
     b[parent].occ.swap(tmp);
-    vector<INT>().swap(b[child].occ); // 释放 child 的容量
+    vector<INT>().swap(b[child].occ); // Release the child's capacity
 }
 
 
 
 
-// 特别给zigzag
+// Special handling for zigzag
 void construct_tuples(INT n, INT* SA, vector<B>& b, INT *LCP, INT Bound) {
     stack<INT> st;
     INT x = -1;
 
-    // 初始化根节点
+    // Initialize the root node
 
     b[0].lcp = 0;
     b[0].l = 0;
-    b[0].r = n - 2; //除去 255 哨兵
+    b[0].r = n - 2; // Exclude the 255 sentinel
 //    b[0].ch.clear();
     b[0].cursor = 0;
-//    b[0].id = -1;  // 暂时标记为无效，稍后计算
+//    b[0].id = -1;  // Temporarily mark as invalid; compute it later
     b[0].min_gap = INT_MAX;
     b[0].occ.clear();
     st.push(0);
@@ -174,7 +174,7 @@ void construct_tuples(INT n, INT* SA, vector<B>& b, INT *LCP, INT Bound) {
             x = st.top();
             b[x].r = i - 1;
 
-            // 出栈时补最后一段尾巴 [cursor..r]
+            // When popping, fill the final tail segment [cursor..r]
             for(INT pos = b[x].cursor; pos <= b[x].r; pos++) {
                 B tmp;
                 tmp.l = pos;
@@ -188,11 +188,11 @@ void construct_tuples(INT n, INT* SA, vector<B>& b, INT *LCP, INT Bound) {
 
                 tmp.min_gap = INT_MAX;
                 tmp.occ.clear();
-                tmp.occ.push_back(SA[pos]); // 叶子只有一个出现位置
+                tmp.occ.push_back(SA[pos]); // A leaf has only one occurrence position
 
 
 
-//                tmp.id = (long long)tmp.l * n + tmp.lcp;  // 立即计算ID
+//                tmp.id = (long long)tmp.l * n + tmp.lcp;  // Compute the ID immediately
                 b.push_back(tmp);
 
                 INT leaf_idx = (INT)b.size() - 1;
@@ -209,7 +209,7 @@ void construct_tuples(INT n, INT* SA, vector<B>& b, INT *LCP, INT Bound) {
             if (LCP[i] <= LCP[check_top]) {
                 INT parent = check_top;
 
-                // 补 [cursor..x.l-1] 的叶子节点
+                // Add leaf nodes for [cursor..x.l-1]
                 for(INT pos = b[parent].cursor; pos < b[x].l; pos++) {
                     B tmp;
                     tmp.l = pos;
@@ -260,7 +260,7 @@ void construct_tuples(INT n, INT* SA, vector<B>& b, INT *LCP, INT Bound) {
             st.push(i);
 
             if(x != -1) {
-                // 补空隙 [cursor..x.l-1]
+                // Fill the gap [cursor..x.l-1]
                 for(INT pos = b[i].cursor; pos < b[x].l; pos++) {
                     B tmp;
                     tmp.l = pos;
@@ -300,12 +300,12 @@ void construct_tuples(INT n, INT* SA, vector<B>& b, INT *LCP, INT Bound) {
     }
 
 
-// ===== 关键：处理栈中剩余的所有节点 =====
-    while(st.size() > 1) {  // 保留根节点
+// ===== Key step: process all remaining nodes in the stack =====
+    while(st.size() > 1) {  // Keep the root node
         x = st.top();
-        b[x].r = n - 2;  // 右边界设为最后
+        b[x].r = n - 2;  // Set the right boundary to the end
 
-        // 补最后一段 [cursor..r]
+        // Fill the final segment [cursor..r]
         for(INT pos = b[x].cursor; pos <= b[x].r; pos++) {
             B tmp;
             tmp.l = pos;
@@ -337,7 +337,7 @@ void construct_tuples(INT n, INT* SA, vector<B>& b, INT *LCP, INT Bound) {
 
         INT parent = st.top();
 
-        // 补父节点的空隙 [cursor..x.l-1]
+        // Fill the parent's gap [cursor..x.l-1]
         for(INT pos = b[parent].cursor; pos < b[x].l; pos++) {
             B tmp;
             tmp.l = pos;
@@ -368,7 +368,7 @@ void construct_tuples(INT n, INT* SA, vector<B>& b, INT *LCP, INT Bound) {
 //            b[parent].ch.push_back(leaf_idx);
         }
 
-        // 将x挂到父节点
+        // Attach x to its parent
 //        b[parent].ch.push_back(x);
         b[x].parent = parent;
         b[parent].cursor = b[x].r + 1;
@@ -380,10 +380,10 @@ void construct_tuples(INT n, INT* SA, vector<B>& b, INT *LCP, INT Bound) {
         absorb_child(parent, x, b);
     }
 
-// 处理根节点的最后部分
+// Process the remaining part of the root
     if(!st.empty()) {
         INT root = st.top();
-        b[root].r = n - 2; // 排除哨兵
+        b[root].r = n - 2; // Exclude the sentinel
 
         for(INT pos = b[root].cursor; pos <= b[root].r; pos++) {
             B tmp;
@@ -412,17 +412,17 @@ void construct_tuples(INT n, INT* SA, vector<B>& b, INT *LCP, INT Bound) {
             absorb_child(root, leaf_idx, b);
         }
     }
-    vector<INT>().swap(b[0].occ); // 释放 root 的vector 容量
+    vector<INT>().swap(b[0].occ); // Release the root vector capacity
 
 
-    // ===== 最后统一计算所有内部节点的ID（包括根节点） =====
+    // ===== Finally compute IDs for all internal nodes, including the root =====
 
 
 
 
     b[0].id = 0;
     for(INT i = 1; i < b.size(); i++) {
-        // 如果 id == -1，说明是内部节点，需要计算ID
+        // If id == -1, this is an internal node and its ID must be computed
 //        if(b[i].id == -1) {
         b[i].id = (uint64_t)b[i].l * (uint64_t)n + (uint64_t) b[i].lcp;
 
@@ -439,12 +439,12 @@ static inline INT extend_lcp_zz(unsigned char* T, INT SA_i,unsigned char* p,INT 
     for (;; ++j)
     {
         unsigned char cT = getZigZagChar(SA_i, j, T, N, Bound);
-        unsigned char cP = p[j]; // 模式从 0 开始
+        unsigned char cP = p[j]; // Pattern is 0-based
 
-        // 任一侧越界（哨兵 255）或首次不等即停止
+        // Stop if either side goes out of bounds (sentinel 255) or on the first mismatch
         if (cT >= 255 || j > m || cT != cP) break;
     }
-    return j; // 返回总匹配长度（= 最后成功匹配位置数）
+    return j; // Return the total matched length (= number of successfully matched positions)
 }
 
 
@@ -589,5 +589,4 @@ std::pair<INT,INT> pattern_matching_Z(unsigned char *p, unsigned char *T, INT* S
 #endif
     return interval;
 }
-
 

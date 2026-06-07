@@ -610,7 +610,7 @@ int main(int argc, char * argv[]){
     // Trie.visualize("trie_visualization");
 
 
-// ---- 输出时间 ----
+// ---- Report timing ----
 
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -676,18 +676,18 @@ int main(int argc, char * argv[]){
         }
 
         INT valueCC=0;
-        INT d = up->depth - patternSizes[i];  // w 到 v 的距离
+        INT d = up->depth - patternSizes[i];  // Distance from w to v
 
         if (d == 0) {
-            // w 是显式节点
+            // w is an explicit node
             valueCC = up->val_even;
         }
         else if (d % 2 == 0) {
-            // d > 0 且 d 是偶数
+            // d > 0 and d is even
             valueCC = d / 2 + up->val_even;
         }
         else {
-            // d > 0 且 d 是奇数
+            // d > 0 and d is odd
             valueCC = d / 2 + up->val_odd + up->child.size();
         }
 

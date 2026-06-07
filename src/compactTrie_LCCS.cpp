@@ -18,52 +18,52 @@ unsigned char getZigZagChar(INT i, INT j, unsigned char* T, INT text_size) {
         index_T = i + cnt;
     }
 
-    // 如果越界，返回255作为边界标记
+    // If out of bounds, return 255 as the boundary marker
     if (index_T < 0 || index_T >= text_size) {
         return 255; // sentinel symbol for boundary
     }
 
-    // 直接返回字符（包括separator字符本身）
+    // Return the character directly, including separators
     return T[index_T];
 }
 
-// 计算从位置i开始的zigzag字符串的最大长度（受separator限制）
+// Compute the maximum zigzag string length starting at position i, bounded by separators
 INT getZigZagMaxLength(INT i, INT text_size, const vector<INT>& IdxSeparators) {
-    // 找到位置i所在文本的左右边界
+    // Find the left and right boundaries of the text containing position i
     INT left_bound = -1;
     INT right_bound = text_size;
 
     if (!IdxSeparators.empty()) {
-        // 使用二分查找找到第一个 >= i 的separator
+        // Use binary search to find the first separator >= i
         auto it = std::lower_bound(IdxSeparators.begin(), IdxSeparators.end(), i);
 
-        // 如果i正好是separator位置，则i不能作为起点
+        // If i is exactly a separator position, it cannot be a starting point
         if (it != IdxSeparators.end() && *it == i) {
             return 1;
         }
 
-        // 找到i左边最近的separator (最后一个 < i 的)
+        // Find the nearest separator to the left of i (the last one < i)
         if (it != IdxSeparators.begin()) {
             --it;
             left_bound = *it ;
             ++it;
         }
 
-        // 找到i右边最近的separator (第一个 > i 的)
+        // Find the nearest separator to the right of i (the first one > i)
         if (it != IdxSeparators.end()) {
             right_bound = *it ;
         }
     }
 
-    // 使用数学公式计算zigzag能达到的最大长度
-    // zigzag从i开始，向左右交替扩展
+    // Use the formula to compute the maximum reachable zigzag length.
+    // The zigzag starts at i and expands alternately to the left and right.
 
-    INT left_steps = i - left_bound;     // 能向左走的步数
-    INT right_steps = right_bound - i -1;   // 能向右走的步数
+    INT left_steps = i - left_bound;     // Number of steps available to the left
+    INT right_steps = right_bound - i -1;   // Number of steps available to the right
     INT steps = std::min(left_steps, right_steps);
 
-    // 长度 = 初始位置1 + 向右向左各steps步
-    // 如果一边还有剩余，再加1
+    // Length = initial position 1 + left and right expansions of 'steps' each.
+    // If one side still has remaining characters, add 1 more.
     INT length = 0;
     if (left_steps <= right_steps) {
         length = 2 * steps + 1;
@@ -105,7 +105,7 @@ compactTrie::compactTrie(std::vector<pair<INT,INT>> &indices, vector<INT>& LCP,u
             INT newNodeLength = getZigZagMaxLength(indices[i].first, this->text_size, IdxSeparators);
             Node* new_node = new Node(indices[i].first, newNodeLength, new_node_label);
             new_node->parent = current;
-            new_node->textID = indices[i].second;  // 存储叶子节点的text ID
+            new_node->textID = indices[i].second;  // Store the text ID of the leaf
 //            new_node->phi = prefixesStarting[i].second;
             current->addChild(new_node, new_node_label);
 
@@ -133,7 +133,7 @@ compactTrie::compactTrie(std::vector<pair<INT,INT>> &indices, vector<INT>& LCP,u
             INT lengthX = getZigZagMaxLength(indices[i].first, this->text_size, IdxSeparators);
             Node* x = new Node(indices[i].first, lengthX, x_label);
 
-            x->textID = indices[i].second;  // 存储叶子节点的text ID
+            x->textID = indices[i].second;  // Store the text ID of the leaf
 
 //            Node * x = new Node( suffix_start, DS.text_size - suffix_start, x_label);
 //            x->phi = prefixesStarting[i].second;
@@ -150,8 +150,8 @@ compactTrie::compactTrie(std::vector<pair<INT,INT>> &indices, vector<INT>& LCP,u
 
 // ===== buildPointers =====
 void compactTrie::buildPointers(INT tau) {
-    // 对每个节点，使用DFS找到其子树中满足css >= tau且深度最大的节点
-    // 使用后序遍历，从叶子向上处理
+    // For each node, use DFS to find the deepest subtree node with css >= tau.
+    // This is done with a post-order traversal from the leaves upward.
 
     stack<pair<Node*, bool>> st;
     st.push({root, false});
@@ -161,21 +161,21 @@ void compactTrie::buildPointers(INT tau) {
         st.pop();
 
         if (visited) {
-            // 后序位置：处理当前节点
+            // Post-order phase: process the current node
             Node* maxDepthNode = nullptr;
             INT maxDepth = -1;
 
-            // 首先检查当前节点自己是否满足条件
+            // First check whether the current node itself satisfies the condition
             if (u->css >= tau) {
                 maxDepthNode = u;
                 maxDepth = u->depth;
             }
 
-            // 检查所有子节点的pointer
+            // Check the pointers of all child nodes
             for (auto &kv : u->child) {
                 Node* child = kv.second;
                 if (child->ptr != nullptr) {
-                    // 子节点有pointer，检查其指向的节点
+                    // The child has a pointer; inspect the pointed node
                     if (child->ptr->depth > maxDepth) {
                         maxDepth = child->ptr->depth;
                         maxDepthNode = child->ptr;
@@ -183,11 +183,11 @@ void compactTrie::buildPointers(INT tau) {
                 }
             }
 
-            // 设置当前节点的pointer
+            // Set the pointer for the current node
             u->ptr = maxDepthNode;
 
         } else {
-            // 前序位置：将节点再次入栈（后续处理），然后压入所有子节点
+            // Pre-order phase: push the node again for later processing, then push all children
             st.push({u, true});
             for (auto it = u->child.rbegin(); it != u->child.rend(); ++it) {
                 st.push({it->second, false});
@@ -199,7 +199,7 @@ void compactTrie::buildPointers(INT tau) {
 // ===== CSS related =====
 void compactTrie::computeCSS()
 {
-    // ========== 单次DFS：完成所有前置计算 ==========
+    // ========== Single DFS: complete all prerequisite computations ==========
     vector<Node*> leafList;
     vector<Node*> allNodes;
     unordered_map<INT, INT> lastleaf_map;   // leaf_id -> prev_same_color_leaf_id
@@ -216,16 +216,16 @@ void compactTrie::computeCSS()
             st.pop();
 
             if (visited) {
-                // 后序位置
+                // Post-order phase
                 u->id = cur_id++;
                 allNodes.push_back(u);
 
                 if (u->child.empty()) {
-                    // 叶子节点
+                    // Leaf node
                     u->leafCount = 1;
                     leafList.push_back(u);
 
-                    // 同时计算 lastleaf
+                    // Compute lastleaf at the same time
                     INT xid = u->id;
                     INT color = u->textID;
 
@@ -234,7 +234,7 @@ void compactTrie::computeCSS()
                     last_seen[color] = xid;
 
                 } else {
-                    // 内部节点
+                    // Internal node
                     INT sum = 0;
                     for (auto &kv : u->child) {
                         sum += kv.second->leafCount;
@@ -254,13 +254,13 @@ void compactTrie::computeCSS()
 
 
 
-    // ========== 构建欧拉游历 (Euler Tour) ==========
-    INT s = 2 * n - 1;  // 欧拉游历长度
-    vector<INT> E;   // Euler tour: 节点ID序列
-    vector<INT> L;   // Levels: 深度序列
+    // ========== Build the Euler tour ==========
+    INT s = 2 * n - 1;  // Euler tour length
+    vector<INT> E;   // Euler tour: sequence of node IDs
+    vector<INT> L;   // Levels: sequence of depths
     E.reserve(s);
     L.reserve(s);
-    vector<INT> R(n, -1);   // Representative: 每个节点首次出现位置
+    vector<INT> R(n, -1);   // Representative: first occurrence position of each node
 
     {
         stack<tuple<Node*, INT, INT>> st;  // (node, depth, child_idx)
@@ -272,34 +272,34 @@ void compactTrie::computeCSS()
 
             INT uid = u->id;
 
-            // 记录欧拉游历
+            // Record the Euler tour
             if (R[uid] == -1) {
-                R[uid] = (INT)E.size();  // 首次出现位置
+                R[uid] = (INT)E.size();  // First occurrence position
             }
             E.push_back(uid);
             L.push_back(depth);
 
-            // 获取子节点列表
+            // Retrieve the child list
             vector<Node*> children;
             for (auto &kv : u->child) {
                 children.push_back(kv.second);
             }
 
-            // 如果还有未访问的子节点
+            // If there are still unvisited child nodes
             if (child_idx < (INT)children.size()) {
-                // 父节点再次入栈（稍后从子节点返回时会再次访问）
+                // Push the parent again so it is revisited after returning from the child
                 st.push({u, depth, child_idx + 1});
-                // 访问下一个子节点
+                // Visit the next child
                 st.push({children[child_idx], depth + 1, 0});
             }
         }
     }
-    // ========== 准备LCA查询 ==========
+    // ========== Prepare LCA queries ==========
     INT q = leafList.size() - this->numText;
 
 
-    // 构建查询数组
-    vector<INT> lca_results(q);  // ← 只保存结果
+    // Build the query array
+    vector<INT> lca_results(q);  // Store results only
     {
 
     vector<Query> Q_lca(q);
@@ -314,7 +314,7 @@ void compactTrie::computeCSS()
         Q_lca[qidx].L = xid;
         Q_lca[qidx].R = prev;
 
-        // 转换为RMQ查询
+        // Convert to an RMQ query
         if (R[xid] < R[prev]) {
             Q_rmq[qidx].L = R[xid];
             Q_rmq[qidx].R = R[prev];
@@ -325,7 +325,7 @@ void compactTrie::computeCSS()
         qidx++;
     }
 
-    // ========== 调用RMQ离线算法 ==========
+    // ========== Run the offline RMQ algorithm ==========
     rmq_offline(L.data(), s, Q_rmq.data(), q);
 
 
@@ -335,22 +335,22 @@ void compactTrie::computeCSS()
 
     }
 
-    // 立即释放大数组
+    // Release large arrays immediately
     E.clear(); E.shrink_to_fit();
     L.clear(); L.shrink_to_fit();
     R.clear(); R.shrink_to_fit();
 
 
-    // ========== 计算 CPLcount ==========
+    // ========== Compute CPLcount ==========
 
     for (INT i = 0; i < q; i++) {
-        INT lca_node = lca_results[i];  // ← 使用保存的结果
+        INT lca_node = lca_results[i];  // Use the stored result
         allNodes[lca_node]->CPLcount++;
     }
 
 
 
-    // ========== 计算 duplicate ==========
+    // ========== Compute duplicate ==========
     for (Node* u : allNodes) {
         INT sum = u->CPLcount;
         for (auto &kv : u->child) {
@@ -359,7 +359,7 @@ void compactTrie::computeCSS()
         u->duplicate = sum;
     }
 
-    // ========== 计算 css ==========
+    // ========== Compute css ==========
     for (Node* u : allNodes) {
         u->css = u->leafCount - u->duplicate;
     }
