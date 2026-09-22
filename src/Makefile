@@ -2,17 +2,22 @@ MF= Makefile
 CC= g++
 
 CFLAGS= -D_USE_64 -O3 -fopenmp -fomit-frame-pointer -funroll-loops -msse3
+OPT_CFLAGS= -O3 -fopenmp -fomit-frame-pointer -funroll-loops -msse3 -DUSE_LIBSAIS_ZZ
+SDSL_ROOT ?= ../third_party/sdsl-install
+LIBSAIS_ROOT ?= ../vendor/zigzag-libsais
+LIBSAIS_OBJS= $(LIBSAIS_ROOT)/libsais.o $(LIBSAIS_ROOT)/libsais64.o
 LFLAGS= -std=c++17 \
-        -I ./libsdsl/include/ -I /usr/include/boost \
-        -L ./libsdsl/lib/ -lsdsl -ldivsufsort -ldivsufsort64
+		-I $(SDSL_ROOT)/include \
+		-L $(SDSL_ROOT)/lib -lsdsl -ldivsufsort -ldivsufsort64
 
 LCCS_LFLAGS= $(LFLAGS) -I ./librmqo/include/ -L ./librmqo/lib/ -lrmqo
 
 .DEFAULT_GOAL := all
 
 .PHONY: all CC LCCS LFCS TCPR-TF TCPR-TP TCPR-SP TopK_Freq TopK_TP TopK_SP \
+        optimized optimized-core optimized-topk test-optimized-backend \
         clean_CC clean_LCCS clean_LFCS clean_TCPR-TF clean_TCPR-TP clean_TCPR-SP \
-        clean_TopK_Freq clean_TopK_TP clean_TopK_SP clean
+        clean_TopK_Freq clean_TopK_TP clean_TopK_SP clean_optimized clean
 
 .SUFFIXES:
 .SUFFIXES: .cpp .o
@@ -33,6 +38,55 @@ compactTrieTruncated.o: compactTrieTruncated.cpp compactTrieTruncated.h $(MF)
 esaTruncated.o:        esaTruncated.cpp        esaTruncated.h $(MF)
 esaTruncated_TP.o:     esaTruncated_TP.cpp     esaTruncated_TP.h $(MF)
 esaTruncated_GAP.o:    esaTruncated_GAP.cpp    esaTruncated_GAP.h $(MF)
+
+
+# ─── Optimized libsais/radix backend, separate 32/64-bit executables ─────────
+# Existing targets above/below remain unchanged and continue to use the original
+# merge-sort constructor.  Optimized binaries always have an _opt32/_opt64 suffix.
+OPT_BACKEND_SRC= zigzag_libsais_backend.cpp
+OPT_BACKEND_HD=  zigzag_libsais_backend.h $(LIBSAIS_ROOT)/zigzag.cpp
+
+$(LIBSAIS_OBJS):
+	$(MAKE) -C $(LIBSAIS_ROOT) $(notdir $@)
+
+define OPTIMIZED_TARGETS
+$(1)_opt32: $(2) $(OPT_BACKEND_SRC) $(OPT_BACKEND_HD) $(LIBSAIS_OBJS)
+	$(CC) $(OPT_CFLAGS) -D_USE_32 -o $$@ $(2) $(OPT_BACKEND_SRC) $(LFLAGS) $(LIBSAIS_OBJS)
+
+$(1)_opt64: $(2) $(OPT_BACKEND_SRC) $(OPT_BACKEND_HD) $(LIBSAIS_OBJS)
+	$(CC) $(OPT_CFLAGS) -D_USE_64 -o $$@ $(2) $(OPT_BACKEND_SRC) $(LFLAGS) $(LIBSAIS_OBJS)
+endef
+
+$(eval $(call OPTIMIZED_TARGETS,run_CC,CC.cpp compactTrie_CC.cpp node_CC.cpp SA_LCP_LCE.cpp))
+$(eval $(call OPTIMIZED_TARGETS,run_LFCS,LFCS.cpp compactTrie_LFCS.cpp node_LFCS.cpp SA_LCP_LCE.cpp))
+$(eval $(call OPTIMIZED_TARGETS,run_LCCS,LCCS.cpp compactTrie_LCCS.cpp node_LCCS.cpp SA_LCP_LCE.cpp rmq-offline-local.cpp))
+$(eval $(call OPTIMIZED_TARGETS,run_TopK_SA_Truncated_Freq,topK_SA_Truncated.cpp compactTrieTruncated.cpp esaTruncated.cpp SA_LCP_LCE.cpp))
+$(eval $(call OPTIMIZED_TARGETS,run_TopK_SA_Truncated_TP,topK_SA_Truncated_TP.cpp compactTrieTruncated.cpp esaTruncated_TP.cpp SA_LCP_LCE.cpp))
+$(eval $(call OPTIMIZED_TARGETS,run_TopK_SA_Truncated_SP,topK_SA_Truncated_GAP.cpp compactTrieTruncated.cpp esaTruncated_GAP.cpp SA_LCP_LCE.cpp))
+
+optimized-core: run_CC_opt32 run_CC_opt64 run_LFCS_opt32 run_LFCS_opt64 \
+		run_LCCS_opt32 run_LCCS_opt64
+
+optimized-topk: run_TopK_SA_Truncated_Freq_opt32 run_TopK_SA_Truncated_Freq_opt64 \
+		run_TopK_SA_Truncated_TP_opt32 run_TopK_SA_Truncated_TP_opt64 \
+		run_TopK_SA_Truncated_SP_opt32 run_TopK_SA_Truncated_SP_opt64
+
+optimized: optimized-core optimized-topk
+
+test-optimized-backend: zigzag_libsais_backend_test
+	OMP_NUM_THREADS=2 ./zigzag_libsais_backend_test
+
+zigzag_libsais_backend_test: zigzag_libsais_backend_test.cpp $(OPT_BACKEND_SRC) $(OPT_BACKEND_HD) $(LIBSAIS_OBJS)
+	$(CC) $(OPT_CFLAGS) -o $@ zigzag_libsais_backend_test.cpp $(OPT_BACKEND_SRC) \
+		-std=c++17 $(LIBSAIS_OBJS)
+
+clean_optimized:
+	rm -f run_CC_opt32 run_CC_opt64 run_LFCS_opt32 run_LFCS_opt64 \
+		run_LCCS_opt32 run_LCCS_opt64 \
+		run_TopK_SA_Truncated_Freq_opt32 run_TopK_SA_Truncated_Freq_opt64 \
+		run_TopK_SA_Truncated_TP_opt32 run_TopK_SA_Truncated_TP_opt64 \
+		run_TopK_SA_Truncated_SP_opt32 run_TopK_SA_Truncated_SP_opt64 \
+		zigzag_libsais_backend_test
 
 
 # ─── CC (Contextual Complexity) ───────────────────────────────────────────────

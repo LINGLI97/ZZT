@@ -3,11 +3,14 @@
 *.a
 run_*
 zigzag
+zigzag_libsais_backend_test
 
 # Library directories (build locally — see pre-install.sh)
 libsdsl/
 librmqo/
 include/
+third_party/
+construct_only/zzt_construct_only
 
 # Data and test files
 *.txt

@@ -14,6 +14,9 @@
 
 #include "compactTrie_LCCS.h"
 #include "SA_LCP_LCE.h"
+#ifdef USE_LIBSAIS_ZZ
+#include "zigzag_libsais_backend.h"
+#endif
 
 
 using namespace std;
@@ -427,14 +430,33 @@ int main(int argc, char * argv[]){
 
 
 
+#ifndef USE_LIBSAIS_ZZ
     unsigned char *textStringWRightMax = addMax(textStringWoMax,text_size);
     unsigned char *textStringWRightMax_rev = reverseString(textStringWRightMax);
+#endif
 
     auto start = std::chrono::high_resolution_clock::now();
+    auto zza_start = std::chrono::steady_clock::now();
 
 //index, text id
-    std::vector<pair<INT,INT>> indices(text_size);
+    std::vector<pair<INT,INT>> indices;
 
+#ifdef USE_LIBSAIS_ZZ
+    std::vector<INT> sorted_positions;
+    std::vector<INT> LCP;
+    const zzt_libsais::BuildStats backend_stats = zzt_libsais::build<INT>(
+        textStringWoMax, static_cast<size_t>(text_size), sorted_positions, LCP);
+
+    indices.resize(static_cast<size_t>(text_size));
+    for (INT rank = 0; rank < text_size; ++rank) {
+        const INT position = sorted_positions[static_cast<size_t>(rank)];
+        const INT text_id = static_cast<INT>(std::upper_bound(
+            IdxSeparators.begin(), IdxSeparators.end(), position) - IdxSeparators.begin());
+        indices[static_cast<size_t>(rank)] = make_pair(position, text_id);
+    }
+    std::vector<INT>().swap(sorted_positions);
+#else
+    indices.resize(static_cast<size_t>(text_size));
     // Determine the text ID for each position using separator locations
     INT current_text_id = 0;
     INT separator_idx = 0;
@@ -480,6 +502,13 @@ int main(int argc, char * argv[]){
 
     mergeSortIterativeZigZag(indices, textStringWoMax, text_size, DS_org, DS_rev, LCP);
 #endif
+#endif
+
+    auto zza_end = std::chrono::steady_clock::now();
+    const double zza_construction_time =
+        std::chrono::duration<double>(zza_end - zza_start).count();
+    const size_t zza_index_bytes = indices.size() * sizeof(pair<INT, INT>) +
+                                   LCP.size() * sizeof(INT);
 
 
 
@@ -536,6 +565,16 @@ int main(int argc, char * argv[]){
 
     cout<<"====================================== Zigzag Index Construction=============================="<<endl;
     cout<<"Tau: "<<tau<<endl;
+#ifdef USE_LIBSAIS_ZZ
+    cout<<"ZZA backend: optimized libsais/radix (" << (sizeof(INT) * 8) << "-bit)"<<endl;
+    cout<<"Backend radix rounds: " << backend_stats.radix_rounds
+        << ", fallback mode: " << backend_stats.fallback_mode << endl;
+#endif
+    cout<<"Comparable ZZA + ZZ-LCP construction time: "
+        << zza_construction_time << " seconds"<<endl;
+    cout<<"Comparable LCCS sorted-index + ZZ-LCP size: "
+        << (static_cast<double>(zza_index_bytes) / (1024.0 * 1024.0))
+        << " MB (" << zza_index_bytes << " bytes)"<<endl;
     cout<<"ZZT construction time: "<< ZZT_time<< " seconds"<<endl;
     cout<<"Total construction time: "<< Construction_time<< " seconds"<<endl;
 
@@ -631,8 +670,10 @@ int main(int argc, char * argv[]){
 
 
 
+#ifndef USE_LIBSAIS_ZZ
     free(textStringWRightMax);
     free(textStringWRightMax_rev);
+#endif
     free(textStringWoMax);
 
     for (auto &it: patterns){

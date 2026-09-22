@@ -13,6 +13,9 @@
 #include <sdsl/rmq_support.hpp>					  //include header for range minimum queries
 #include "compactTrie_CC.h"
 #include "SA_LCP_LCE.h"
+#ifdef USE_LIBSAIS_ZZ
+#include "zigzag_libsais_backend.h"
+#endif
 
 
 using namespace std;
@@ -519,8 +522,15 @@ int main(int argc, char * argv[]){
 
 
 
+    // Comparable construction interval: everything needed to produce the ZigZag
+    // array (`indices`) and ZigZag LCP array (`LCP`), excluding file/pattern I/O
+    // and excluding the query-specific CC trie built below.
+    auto zza_start = std::chrono::steady_clock::now();
+
+#ifndef USE_LIBSAIS_ZZ
     unsigned char *textStringWLeftDollar = addDollar(textStringWoDollar,text_size);
     unsigned char *textStringWLeftDollar_rev = reverseString(textStringWLeftDollar);
+#endif
 
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -529,7 +539,10 @@ int main(int argc, char * argv[]){
 
     std::vector<INT> LCP;
 
-#ifdef USE_DIRECT_COMPARE
+#ifdef USE_LIBSAIS_ZZ
+    const zzt_libsais::BuildStats backend_stats = zzt_libsais::build<INT>(
+        textStringWoDollar, static_cast<size_t>(text_size), indices, LCP);
+#elif defined(USE_DIRECT_COMPARE)
     mergeSortIterativeZigZag_direct(indices, textStringWoDollar, text_size, LCP);
 #else
     /*Prepared SA, invSA, LCP, LCE, rmq for the original string*/
@@ -559,6 +572,14 @@ int main(int argc, char * argv[]){
 
     mergeSortIterativeZigZag(indices, textStringWoDollar, text_size, DS_org, DS_rev, LCP);
 #endif
+
+    auto zza_end = std::chrono::steady_clock::now();
+    const double zza_construction_time =
+        std::chrono::duration<double>(zza_end - zza_start).count();
+    const size_t zza_index_bytes =
+        indices.size() * sizeof(INT) + LCP.size() * sizeof(INT);
+    const double zza_index_mb =
+        static_cast<double>(zza_index_bytes) / (1024.0 * 1024.0);
 
 
 #ifdef VERBOSE
@@ -636,6 +657,16 @@ int main(int argc, char * argv[]){
 
 
     cout<<"====================================== Zigzag Index Construction=============================="<<endl;
+
+#ifdef USE_LIBSAIS_ZZ
+    cout<<"ZZA backend: optimized libsais/radix (" << (sizeof(INT) * 8) << "-bit)"<<endl;
+    cout<<"Backend radix rounds: " << backend_stats.radix_rounds
+        << ", fallback mode: " << backend_stats.fallback_mode << endl;
+#endif
+    cout<<"Comparable ZZA + ZZ-LCP construction time: "
+        << zza_construction_time << " seconds"<<endl;
+    cout<<"Comparable ZZA + ZZ-LCP index size: "
+        << zza_index_mb << " MB (" << zza_index_bytes << " bytes)"<<endl;
 
     cout<<"ZZT construction time: "<< ZZT_time<< " seconds"<<endl;
     cout<<"Total construction time: "<< Construction_time<< " seconds"<<endl;
@@ -718,8 +749,10 @@ int main(int argc, char * argv[]){
 
 
 
+#ifndef USE_LIBSAIS_ZZ
     free(textStringWLeftDollar);
     free(textStringWLeftDollar_rev);
+#endif
     free(textStringWoDollar);
 
     for (auto &it: patterns){

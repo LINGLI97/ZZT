@@ -11,14 +11,22 @@
 #include <cstring>
 #include <chrono>
 #include <sdsl/rmq_support.hpp>					  //include header for range minimum queries
-#include "compactTrie_LFCS.h"
-#include "SA_LCP_LCE.h"
-#ifdef USE_LIBSAIS_ZZ
-#include "zigzag_libsais_backend.h"
+#ifndef CONSTRUCT_ONLY
+#include "compactTrie_CC.h"
 #endif
+#include "SA_LCP_LCE.h"
 
 
 using namespace std;
+
+// Kept locally so the construction-only copy does not depend on the compact
+// trie/query implementation merely for this character accessor.
+unsigned char getZigZagChar(INT i, INT j, unsigned char* T, INT text_size) {
+    const INT cnt = (j + 1) / 2;
+    const INT index_T = (j % 2 == 0) ? i - cnt : i + cnt;
+    if (index_T < 0 || index_T >= text_size) return 255;
+    return T[index_T];
+}
 
 
 
@@ -492,8 +500,9 @@ int main(int argc, char * argv[]){
 
     cmdline::parser parser;
     parser.add<string>("filePath", 'f', "the path to input file", false, "input.txt");
+#ifndef CONSTRUCT_ONLY
     parser.add<string>("patternPath", 'p', "the path to pattern file", false, "patterns.txt");
-    parser.add<int>("tau", 't', "the support", false, 1);
+#endif
 
 
 
@@ -501,9 +510,37 @@ int main(int argc, char * argv[]){
 
     string filePath = parser.get<string>("filePath");
 
+#ifdef CONSTRUCT_ONLY
+    // The comparable baseline needs only the text. Patterns belong to the
+    // omitted query benchmark and would distort peak-RSS measurements.
+    std::ifstream is_text(filePath, std::ios::binary | std::ios::ate);
+    if (!is_text) {
+        cerr << "Error opening input file: " << filePath << endl;
+        return 1;
+    }
+    const std::streamsize input_bytes = is_text.tellg();
+    if (input_bytes < 0) {
+        cerr << "Error determining input size: " << filePath << endl;
+        return 1;
+    }
+    const INT text_size = static_cast<INT>(input_bytes);
+    unsigned char *textStringWoDollar =
+        static_cast<unsigned char *>(malloc((text_size + 1) * sizeof(unsigned char)));
+    if (!textStringWoDollar) {
+        cerr << "Unable to allocate input buffer" << endl;
+        return 1;
+    }
+    is_text.seekg(0, std::ios::beg);
+    if (text_size > 0 &&
+        !is_text.read(reinterpret_cast<char *>(textStringWoDollar), input_bytes)) {
+        cerr << "Error reading input file: " << filePath << endl;
+        free(textStringWoDollar);
+        return 1;
+    }
+    textStringWoDollar[text_size] = '\0';
+#else
     string patternPath = parser.get<string>("patternPath");
 
-    INT tau = parser.get<int>("tau");
 
     // if bottom is specified, use bottom k instead of top k
     unsigned char *textStringWoDollar;
@@ -520,27 +557,27 @@ int main(int argc, char * argv[]){
 
 
     readfile_woDollar(filePath, patternPath, textStringWoDollar, patterns, text_size, alphabetSize, patternSizes);
-
-
-
-
-#ifndef USE_LIBSAIS_ZZ
-    unsigned char *textStringWLeftDollar = addDollar(textStringWoDollar,text_size);
-    unsigned char *textStringWLeftDollar_rev = reverseString(textStringWLeftDollar);
 #endif
 
-    auto start = std::chrono::high_resolution_clock::now();
+
+
+
+    // Comparable construction interval: everything needed to produce the ZigZag
+    // array (`indices`) and ZigZag LCP array (`LCP`), excluding file/pattern I/O
+    // and excluding the query-specific CC trie built below.
     auto zza_start = std::chrono::steady_clock::now();
+
+    unsigned char *textStringWLeftDollar = addDollar(textStringWoDollar,text_size);
+    unsigned char *textStringWLeftDollar_rev = reverseString(textStringWLeftDollar);
+
+    auto start = std::chrono::high_resolution_clock::now();
 
     std::vector<INT> indices(text_size);
     for (INT i = 0; i < text_size; ++i) indices[i] = i;
 
     std::vector<INT> LCP;
 
-#ifdef USE_LIBSAIS_ZZ
-    const zzt_libsais::BuildStats backend_stats = zzt_libsais::build<INT>(
-        textStringWoDollar, static_cast<size_t>(text_size), indices, LCP);
-#elif defined(USE_DIRECT_COMPARE)
+#ifdef USE_DIRECT_COMPARE
     mergeSortIterativeZigZag_direct(indices, textStringWoDollar, text_size, LCP);
 #else
     /*Prepared SA, invSA, LCP, LCE, rmq for the original string*/
@@ -576,7 +613,20 @@ int main(int argc, char * argv[]){
         std::chrono::duration<double>(zza_end - zza_start).count();
     const size_t zza_index_bytes =
         indices.size() * sizeof(INT) + LCP.size() * sizeof(INT);
+    const double zza_index_mb =
+        static_cast<double>(zza_index_bytes) / (1024.0 * 1024.0);
 
+#ifdef CONSTRUCT_ONLY
+    cout<<"====================================== Comparable ZZA + ZZ-LCP Construction =============================="<<endl;
+    cout<<"Total construction time: " << zza_construction_time << " seconds"<<endl;
+    cout<<"Index size: " << zza_index_mb << " MB (" << zza_index_bytes << " bytes)"<<endl;
+    cout<<"Index memory: " << zza_index_mb << "MB"<<endl;
+
+    free(textStringWLeftDollar);
+    free(textStringWLeftDollar_rev);
+    free(textStringWoDollar);
+    return 0;
+#else
 
 #ifdef VERBOSE
     // Print sorted zigzag strings
@@ -620,12 +670,11 @@ int main(int argc, char * argv[]){
 
     long long IndexSpace_start = memory_usage();
 
-    auto trieStart = std::chrono::high_resolution_clock::now();
-
     compactTrie Trie(indices, LCP, textStringWoDollar);
-    auto trieEnd = std::chrono::high_resolution_clock::now();
+    auto t0 = std::chrono::high_resolution_clock::now();
 
-    Trie.buildLFCS(tau);
+    Trie.buildCC();
+    // Trie.visualize("trie_visualization");
 
 
 // ---- Report timing ----
@@ -646,24 +695,20 @@ int main(int argc, char * argv[]){
 
 
     double Construction_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() * 0.000001;
-    double ZZT_time = std::chrono::duration_cast<std::chrono::microseconds>(trieEnd - start).count() * 0.000001;
+    double ZZT_time = std::chrono::duration_cast<std::chrono::microseconds>(t0 - start).count() * 0.000001;
+
+
 
 
 
 
     cout<<"====================================== Zigzag Index Construction=============================="<<endl;
 
-    cout<<"Tau: "<<tau<<endl;
-#ifdef USE_LIBSAIS_ZZ
-    cout<<"ZZA backend: optimized libsais/radix (" << (sizeof(INT) * 8) << "-bit)"<<endl;
-    cout<<"Backend radix rounds: " << backend_stats.radix_rounds
-        << ", fallback mode: " << backend_stats.fallback_mode << endl;
-#endif
     cout<<"Comparable ZZA + ZZ-LCP construction time: "
         << zza_construction_time << " seconds"<<endl;
     cout<<"Comparable ZZA + ZZ-LCP index size: "
-        << (static_cast<double>(zza_index_bytes) / (1024.0 * 1024.0))
-        << " MB (" << zza_index_bytes << " bytes)"<<endl;
+        << zza_index_mb << " MB (" << zza_index_bytes << " bytes)"<<endl;
+
     cout<<"ZZT construction time: "<< ZZT_time<< " seconds"<<endl;
     cout<<"Total construction time: "<< Construction_time<< " seconds"<<endl;
 
@@ -672,7 +717,7 @@ int main(int argc, char * argv[]){
 
 
 
-    cout << "=========================== Start to query all the patterns: Longest Frequent Contextual Superstring  ==========================="<< endl;
+    cout << "=========================== Start to query all the patterns: Contextual Complexity ==========================="<< endl;
 
     // Start to query all the patterns
     for (INT i = 0; i < patterns.size(); i++) {
@@ -702,25 +747,25 @@ int main(int argc, char * argv[]){
             continue;
         }
 
-        Node* nodePointer = up->frequentPtr;
+        INT valueCC=0;
+        INT d = up->depth - patternSizes[i];  // Distance from w to v
 
-        if (!nodePointer)
-        {
-            std::cout << "Pattern " << i << ": " << patterns[i] << std::endl;
-            std::cerr << "P exists in text string but LPR is not "<<tau <<"-frequent"<< std::endl;
-            delete[] ZP;
-            continue;
-        }else
-        {
-            std::cout << "Pattern " << i << ": " << patterns[i] << std::endl;
-            INT lpr_len = nodePointer->depth;
-            if ((lpr_len - patternSizes[i]) % 2 != 0) lpr_len--;
-            std::cout << "LPR length: " << lpr_len << std::endl;
-
+        if (d == 0) {
+            // w is an explicit node
+            valueCC = up->val_even;
+        }
+        else if (d % 2 == 0) {
+            // d > 0 and d is even
+            valueCC = d / 2 + up->val_even;
+        }
+        else {
+            // d > 0 and d is odd
+            valueCC = d / 2 + up->val_odd + up->child.size();
         }
 
 
-
+        std::cout << "Pattern " << i << ": " << patterns[i] << std::endl;
+        std::cout << "Contextual Complexity: " << valueCC << endl;
         auto queryEnd = std::chrono::high_resolution_clock::now();
 
         double query_time =std::chrono::duration_cast<std::chrono::microseconds>(queryEnd - queryStart).count() * 0.000001;
@@ -745,10 +790,8 @@ int main(int argc, char * argv[]){
 
 
 
-#ifndef USE_LIBSAIS_ZZ
     free(textStringWLeftDollar);
     free(textStringWLeftDollar_rev);
-#endif
     free(textStringWoDollar);
 
     for (auto &it: patterns){
@@ -758,5 +801,5 @@ int main(int argc, char * argv[]){
 
 
 
-
+#endif
 }

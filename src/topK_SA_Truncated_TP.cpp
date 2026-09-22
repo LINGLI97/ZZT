@@ -14,6 +14,9 @@
 #include "compactTrieTruncated.h"
 #include "SA_LCP_LCE.h"
 #include "esaTruncated_TP.h"
+#ifdef USE_LIBSAIS_ZZ
+#include "zigzag_libsais_backend.h"
+#endif
 
 using namespace std;
 
@@ -623,8 +626,10 @@ int main(int argc, char * argv[]) {
     }
     cout<< "B = "<< Bound <<endl;
 
+#ifndef USE_LIBSAIS_ZZ
     unsigned char *textStringWLeftMax = addMax(textStringWoMax, text_size);
     unsigned char *textStringWLeftMax_rev = reverseString(textStringWLeftMax);
+#endif
 
 
     long long IndexSpace_start = memory_usage();
@@ -640,21 +645,27 @@ int main(int argc, char * argv[]) {
     // construct SA and LCP for Z
 
 
+#ifdef USE_LIBSAIS_ZZ
+    std::vector<INT> SA_Z_storage;
+    std::vector<INT> LCP_Z_storage;
+    const zzt_libsais::BuildStats backend_stats = zzt_libsais::build<INT>(
+        textStringWoMax, static_cast<size_t>(text_size), SA_Z_storage, LCP_Z_storage);
+    for (INT& value : LCP_Z_storage) value = std::min(value, Bound);
+    INT *SA_Z = SA_Z_storage.data();
+    INT *LCP_Z = LCP_Z_storage.data();
+#else
     INT *SA_Z = (INT *) malloc((text_size) * sizeof(INT));
-
-    for (INT i = 0; i < text_size; ++i) {
-        SA_Z[i] = i;
-
-    }
-
-
+    for (INT i = 0; i < text_size; ++i) SA_Z[i] = i;
     INT *LCP_Z = (INT *) malloc((text_size) * sizeof(INT));
+#endif
 
 
     rmq_succinct_sct<> rmq;
 
 
-#ifdef USE_DIRECT_COMPARE
+#if defined(USE_LIBSAIS_ZZ)
+    {
+#elif defined(USE_DIRECT_COMPARE)
     mergeSortIterativeZigZag_direct(SA_Z, textStringWoMax, text_size, LCP_Z, Bound);
     {
 #else
@@ -868,6 +879,15 @@ int main(int argc, char * argv[]) {
 
     cout<<"====================================== Zigzag Suffix Array Version Index Construction=============================="<<endl;
 
+#ifdef USE_LIBSAIS_ZZ
+    cout<<"ZZA backend: optimized libsais/radix (" << (sizeof(INT) * 8)
+        << "-bit, full order + Bound-clamped ZZ-LCP)"<<endl;
+    cout<<"Backend radix rounds: " << backend_stats.radix_rounds
+        << ", fallback mode: " << backend_stats.fallback_mode << endl;
+    cout<<"ZZA + ZZ-LCP index size: "
+        << ((SA_Z_storage.size() + LCP_Z_storage.size()) * sizeof(INT))
+        << " bytes"<<endl;
+#endif
     cout<<"ZZT construction time: "<< ZZT_time<< " seconds"<<endl;
     cout<<"Total construction time: "<< Construction_time<< " seconds"<<endl;
 
@@ -1072,15 +1092,19 @@ int main(int argc, char * argv[]) {
 
 
 
+#ifndef USE_LIBSAIS_ZZ
     free(textStringWLeftMax);
     free(textStringWLeftMax_rev);
+#endif
     free(textStringWoMax);
 
     for (auto &it: patterns){
         free(it);
     }
+#ifndef USE_LIBSAIS_ZZ
     free(SA_Z);
     free(LCP_Z);
+#endif
 
 
 

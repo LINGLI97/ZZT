@@ -54,6 +54,25 @@ Build the main methods:
 make -C src
 ```
 
+Build the added libsais/radix optimized variants without replacing the original
+executables (load the cluster Boost module first if it is not already loaded):
+
+```bash
+module load boost/1.83.0-gcc-13.2.0
+make -C src optimized
+make -C src test-optimized-backend
+```
+
+Every method has separate `_opt32` and `_opt64` executables, for example
+`run_CC_opt32` and `run_CC_opt64`.  The 32-bit variants require the complete
+input length and all positions to fit in signed 32-bit `INT`; use the 64-bit
+variant otherwise.  The original executable names and merge-sort backend are
+unchanged.
+
+The optimized Top-K variants currently build the full optimized ZZA and then
+clamp ZZ-LCP values to `Bound`.  This preserves the truncated-prefix query
+semantics, but it is not yet a native early-stopping bounded construction.
+
 Build the baselines:
 
 ```bash
